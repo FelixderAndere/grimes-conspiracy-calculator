@@ -4,7 +4,7 @@ A website calculator implementation of the research paper _On the Viability of C
 
 ## Usage
 
-Open `/home/runner/work/grimes-conspiracy-calculator/grimes-conspiracy-calculator/index.html` in a browser.
+Open `[github.pages Website](https://felixderandere.github.io/grimes-conspiracy-calculator/)` in a browser.
 
 The calculator supports:
 - Forward leak probability with stable `N`.
