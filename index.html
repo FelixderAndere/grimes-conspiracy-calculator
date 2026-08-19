@@ -5,83 +5,307 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Grimes Conspiracy Calculator</title>
   <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #fafafa; color: #111; }
-    main { max-width: 1000px; margin: 0 auto; padding: 1.25rem; }
-    h1 { margin-top: 0; }
-    .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; }
-    label { display: block; font-size: 0.92rem; margin-bottom: 0.25rem; }
-    input, select, button { width: 100%; box-sizing: border-box; padding: 0.55rem; font-size: 0.95rem; }
-    button { cursor: pointer; }
-    .results { margin-top: 0.75rem; font-weight: 600; }
-    #plot { height: 450px; }
+    :root {
+      --bg: #101217;
+      --panel: #171a22;
+      --panel-strong: #1b1f29;
+      --line: #2e3443;
+      --line-2: #3d475a;
+      --text: #e7ebf5;
+      --text-soft: #a6afc2;
+      --accent: #6fd5ff;
+      --accent-2: #8ef0c8;
+      --danger: #ff7f9f;
+      --shadow: 0 14px 35px rgba(0, 0, 0, 0.38);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Space Grotesk", "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .app-shell {
+      width: min(1400px, calc(100vw - 2rem));
+      margin: 0.6rem auto 1rem;
+      padding: 0;
+      display: grid;
+      grid-template-columns: minmax(300px, 370px) minmax(0, 1fr);
+      gap: 1rem;
+      min-height: calc(100vh - 2rem);
+    }
+
+    .page-header {
+      width: min(1400px, calc(100vw - 2rem));
+      margin: 1rem auto 0.45rem;
+      padding: 0.35rem 0;
+      text-align: center;
+    }
+
+    .panel {
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      padding: 1rem;
+    }
+
+    .input-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 0.9rem;
+    }
+
+    .output-panel {
+      background: var(--panel-strong);
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 0.9rem;
+      min-width: 0;
+    }
+
+    .panel-description {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--text-soft);
+      padding-bottom: 0.65rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.3rem, 2vw, 1.7rem);
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      margin: 0.35rem 0 0;
+      color: var(--text-soft);
+      font-size: 0.93rem;
+      line-height: 1.45;
+    }
+
+    .input-group {
+      border-top: 1px solid var(--line);
+      padding-top: 0.75rem;
+    }
+
+    .group-title {
+      margin: 0 0 0.6rem;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.13em;
+      color: var(--text-soft);
+      font-weight: 700;
+    }
+
+    .stack {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .field label {
+      display: block;
+      font-size: 0.86rem;
+      color: #ccdaf8;
+      margin-bottom: 0.32rem;
+    }
+
+    input, select, button {
+      width: 100%;
+      font: inherit;
+      color: var(--text);
+      border: 1px solid var(--line-2);
+      background: #101a2e;
+      border-radius: 11px;
+      padding: 0.58rem 0.62rem;
+      outline: none;
+      transition: border-color 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+    }
+
+    input:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(83, 216, 255, 0.15);
+    }
+
+    button {
+      font-weight: 700;
+      border: 0;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #06111c;
+      cursor: pointer;
+      box-shadow: 0 12px 26px rgba(83, 216, 255, 0.22);
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 34px rgba(83, 216, 255, 0.3);
+    }
+
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.8rem;
+      margin-bottom: 0.4rem;
+    }
+
+    .result-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 0.8rem;
+      min-height: 90px;
+    }
+
+    .result-label {
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      color: var(--text-soft);
+      margin-bottom: 0.42rem;
+      font-weight: 700;
+    }
+
+    .results {
+      font-family: "JetBrains Mono", Consolas, monospace;
+      font-size: 0.94rem;
+      line-height: 1.4;
+      color: #f0f6ff;
+    }
+
+    .error {
+      min-height: 1.2rem;
+      color: var(--danger);
+      font-size: 0.88rem;
+      margin-top: 0.35rem;
+    }
+
+    #plot {
+      height: 100%;
+      min-height: 460px;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    }
+
+    .is-hidden {
+      display: none;
+    }
+
+    @media (max-width: 1024px) {
+      .app-shell {
+        grid-template-columns: 1fr;
+        min-height: auto;
+      }
+
+      .results-grid {
+        grid-template-columns: 1fr;
+      }
+
+      #plot {
+        min-height: 390px;
+      }
+    }
   </style>
 </head>
 <body>
-  <main>
+  <header class="page-header">
     <h1>Grimes Conspiracy Calculator</h1>
-    <p>Leak probability model from <em>On the Viability of Conspiratorial Beliefs</em> (David Robert Grimes).</p>
+    <p class="subtitle">Leak probability model from <em>On the Viability of Conspiratorial Beliefs</em> by David Robert Grimes.</p>
+  </header>
 
-    <section class="card">
-      <div class="grid">
-        <div>
-          <label for="mode">Model</label>
-          <select id="mode">
-            <option value="stable">Stable N</option>
-            <option value="gompertz">Changing N (Gompertz)</option>
-          </select>
-        </div>
-        <div>
-          <label for="p">Per-person leak rate p (per year)</label>
-          <input id="p" type="number" step="any" value="0.000004" />
-        </div>
-        <div>
-          <label for="n">Initial people N₀</label>
-          <input id="n" type="number" step="1" value="1000" />
-        </div>
-        <div>
-          <label for="t">Time t (years)</label>
-          <input id="t" type="number" step="0.1" value="5" />
-        </div>
-      </div>
+  <main class="app-shell">
 
-      <div class="grid" style="margin-top:0.75rem" id="gompertzFields">
-        <div>
-          <label for="alpha">Gompertz α</label>
-          <input id="alpha" type="number" step="any" value="0.0005" />
+    <section class="panel input-panel">
+      <p class="panel-description">Parameter Input</p>
+      <section class="input-group">
+        <h2 class="group-title">Model Selection</h2>
+        <div class="stack">
+          <div class="field">
+            <label for="mode">Model type</label>
+            <select id="mode">
+              <option value="stable">Stable N (N(t) = N₀)</option>
+              <option value="gompertz">Changing N (N(t) = Gompertz(N₀, α, β, avg(tN)))</option>
+            </select>
+          </div>
         </div>
-        <div>
-          <label for="beta">Gompertz β</label>
-          <input id="beta" type="number" step="any" value="0.08" />
-        </div>
-      </div>
+      </section>
 
-      <div class="grid" style="margin-top:0.75rem">
-        <div>
-          <label for="targetL">Target leak probability L(t) (for reverse)</label>
-          <input id="targetL" type="number" min="0" max="0.999999999" step="0.0001" value="0.5" />
+      <section class="input-group">
+        <h2 class="group-title">Core Parameters</h2>
+        <div class="stack">
+          <div class="field">
+            <label for="p">Per-person per year leak probability p</label>
+            <input id="p" type="number" step="any" value="0.000004" />
+          </div>
+          <div class="field">
+            <label for="n">Initial people N₀</label>
+            <input id="n" type="number" step="1" value="1000" />
+          </div>
+          <div class="field">
+            <label for="t">Time t [years]</label>
+            <input id="t" type="number" step="0.1" value="100" />
+          </div>
         </div>
-        <div>
-          <label for="reverseType">Reverse solve</label>
-          <select id="reverseType">
-            <option value="n">max N from L(t), p, t</option>
-            <option value="t">max t from L(t), p, N</option>
-          </select>
+      </section>
+
+      <section class="input-group" id="gompertzFields">
+        <h2 class="group-title">Gompertz Parameters</h2>
+        <div class="stack">
+          <div class="field">
+            <label for="alpha">Gompertz α (Baseline level mortality)</label>
+            <input id="alpha" type="number" step="any" value="0.0005" />
+          </div>
+          <div class="field">
+            <label for="beta">Gompertz β (Mortality increase per year of life)</label>
+            <input id="beta" type="number" step="any" value="0.08" />
+          </div>
+          <div class="field">
+            <label for="avgAge">Average age at t = 0 [years]</label>
+            <input id="avgAge" type="number" step="0.1" value="40" />
+          </div>
         </div>
-      </div>
+      </section>
 
-      <div class="grid" style="margin-top:0.75rem">
-        <button id="calcBtn">Calculate</button>
-      </div>
-
-      <div class="results" id="forwardResult"></div>
-      <div class="results" id="reverseResult"></div>
-      <div id="error" style="margin-top:0.5rem;color:#b00020"></div>
+      <section class="input-group">
+        <h2 class="group-title">Reverse Solve</h2>
+        <div class="stack">
+          <div class="field">
+            <label for="targetL">Target leak probability L(t)</label>
+            <input id="targetL" type="number" min="0" max="0.999999999" step="0.0001" value="0.5" />
+          </div>
+          <div class="field">
+            <label for="reverseType">Solve for</label>
+            <select id="reverseType">
+              <option value="n">max(N₀) from L(t), p, t</option>
+              <option value="t">max(t) from L(t), p, N₀</option>
+            </select>
+          </div>
+        </div>
+      </section>
     </section>
 
-    <section class="card">
-      <h2 style="margin-top:0">Leak probability over time</h2>
+    <section class="panel output-panel">
+      <div>
+        <p class="panel-description">Output</p>
+        <div class="results-grid">
+          <article class="result-card">
+            <div class="result-label">Forward Result</div>
+            <div class="results" id="forwardResult"></div>
+          </article>
+          <article class="result-card">
+            <div class="result-label">Reverse Result</div>
+            <div class="results" id="reverseResult"></div>
+          </article>
+        </div>
+        <div class="error" id="error"></div>
+      </div>
+
       <div id="plot"></div>
     </section>
   </main>
@@ -93,6 +317,7 @@
     const tEl = document.getElementById('t');
     const alphaEl = document.getElementById('alpha');
     const betaEl = document.getElementById('beta');
+    const avgAgeEl = document.getElementById('avgAge');
     const targetLEl = document.getElementById('targetL');
     const reverseTypeEl = document.getElementById('reverseType');
     const gompertzFields = document.getElementById('gompertzFields');
@@ -108,17 +333,19 @@
       return n;
     }
 
-    function gompertzPopulationFactor(t, alpha, beta) {
-      return Math.exp(-(alpha / beta) * (Math.exp(beta * t) - 1));
+    function gompertzPopulationFactor(t, alpha, beta, averageAge = 0) {
+      const ageStart = Math.exp(beta * averageAge);
+      const ageEnd = Math.exp(beta * (averageAge + t));
+      return Math.exp(-(alpha / beta) * (ageEnd - ageStart));
     }
 
-    function integrateGompertzUnit(t, alpha, beta, steps = 2000) {
+    function integrateGompertzUnit(t, alpha, beta, averageAge = 0, steps = 2000) {
       if (t === 0) return 0;
       const h = t / steps;
       let total = 0;
       for (let i = 0; i <= steps; i++) {
         const x = i * h;
-        const fx = gompertzPopulationFactor(x, alpha, beta);
+        const fx = gompertzPopulationFactor(x, alpha, beta, averageAge);
         if (i === 0 || i === steps) total += fx;
         else if (i % 2 === 0) total += 2 * fx;
         else total += 4 * fx;
@@ -130,8 +357,8 @@
       return 1 - Math.exp(-p * n * t);
     }
 
-    function leakGompertz(p, n0, t, alpha, beta) {
-      const integral = integrateGompertzUnit(t, alpha, beta);
+    function leakGompertz(p, n0, t, alpha, beta, averageAge = 0) {
+      const integral = integrateGompertzUnit(t, alpha, beta, averageAge);
       return 1 - Math.exp(-p * n0 * integral);
     }
 
@@ -145,23 +372,23 @@
       return -Math.log(1 - targetL) / (p * n);
     }
 
-    function maxNGompertz(targetL, p, t, alpha, beta) {
+    function maxNGompertz(targetL, p, t, alpha, beta, averageAge = 0) {
       if (targetL === 0) return 0;
-      const unitIntegral = integrateGompertzUnit(t, alpha, beta);
+      const unitIntegral = integrateGompertzUnit(t, alpha, beta, averageAge);
       if (unitIntegral <= 0) throw new Error('t must be positive to solve max N when target L(t) > 0.');
       return -Math.log(1 - targetL) / (p * unitIntegral);
     }
 
-    function maxTGompertz(targetL, p, n0, alpha, beta) {
+    function maxTGompertz(targetL, p, n0, alpha, beta, averageAge = 0) {
       const target = -Math.log(1 - targetL);
       let lo = 0;
       let hi = 1;
-      while (p * n0 * integrateGompertzUnit(hi, alpha, beta) < target && hi < 1e6) {
+      while (p * n0 * integrateGompertzUnit(hi, alpha, beta, averageAge) < target && hi < 1e6) {
         hi *= 2;
       }
       for (let i = 0; i < 80; i++) {
         const mid = (lo + hi) / 2;
-        const v = p * n0 * integrateGompertzUnit(mid, alpha, beta);
+        const v = p * n0 * integrateGompertzUnit(mid, alpha, beta, averageAge);
         if (v >= target) hi = mid;
         else lo = mid;
       }
@@ -182,7 +409,7 @@
         const targetL = Number(targetLEl.value);
 
         if (!Number.isFinite(targetL) || targetL < 0 || targetL >= 1) {
-          throw new Error('Target L(t) must be in [0, 1).');
+          throw new Error('Target L(t) must be in [0, 1].');
         }
 
         let forward;
@@ -196,16 +423,17 @@
         } else {
           const alpha = parsePositive(alphaEl.value, 'alpha', true);
           const beta = parsePositive(betaEl.value, 'beta');
-          forward = leakGompertz(p, n, t, alpha, beta);
+          const averageAge = parsePositive(avgAgeEl.value, 'average age', true);
+          forward = leakGompertz(p, n, t, alpha, beta, averageAge);
           reverse = reverseTypeEl.value === 'n'
-            ? maxNGompertz(targetL, p, t, alpha, beta)
-            : maxTGompertz(targetL, p, n, alpha, beta);
+            ? maxNGompertz(targetL, p, t, alpha, beta, averageAge)
+            : maxTGompertz(targetL, p, n, alpha, beta, averageAge);
         }
 
-        forwardResult.textContent = `Forward: L(${t.toFixed(4)}) = ${formatPercent(forward)} (${forward.toPrecision(8)})`;
+        forwardResult.textContent = `L(${t.toFixed(2)}) = ${forward.toFixed(4)*100}% (${forward.toPrecision(6)})`;
         reverseResult.textContent = reverseTypeEl.value === 'n'
-          ? `Reverse: max N ≈ ${reverse.toLocaleString(undefined, { maximumFractionDigits: 3 })}`
-          : `Reverse: max t ≈ ${reverse.toLocaleString(undefined, { maximumFractionDigits: 6 })} years`;
+          ? `max(N₀) ≈ ${reverse.toLocaleString(undefined, { maximumFractionDigits: 1 })}`
+          : `max(t) ≈ ${reverse.toLocaleString(undefined, { maximumFractionDigits: 6 })} years`;
 
         renderPlot();
       } catch (err) {
@@ -222,6 +450,7 @@
       const maxT = Math.max(0.1, Number(tEl.value));
       const alpha = Number(alphaEl.value);
       const beta = Number(betaEl.value);
+      const averageAge = Number(avgAgeEl.value);
 
       const steps = 200;
       const xs = [];
@@ -235,31 +464,61 @@
           ys.push(leakStable(p, n, x));
           ns.push(n);
         } else {
-          ys.push(leakGompertz(p, n, x, alpha, beta));
-          ns.push(n * gompertzPopulationFactor(x, alpha, beta));
+          ys.push(leakGompertz(p, n, x, alpha, beta, averageAge));
+          ns.push(n * gompertzPopulationFactor(x, alpha, beta, averageAge));
         }
       }
+
+      const maxLeak = Math.max(...ys);
+      const yMaxLeak = maxLeak > 0 ? maxLeak : 0.000001;
 
       Plotly.newPlot('plot', [
         { x: xs, y: ys, mode: 'lines', name: 'L(t)', line: { width: 3 } },
         { x: xs, y: ns, mode: 'lines', name: 'N(t)', yaxis: 'y2', line: { dash: 'dot' } }
       ], {
-        xaxis: { title: 't (years)' },
-        yaxis: { title: 'L(t)', range: [0, 1] },
-        yaxis2: { title: 'N(t)', overlaying: 'y', side: 'right' },
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#e9f0ff', family: 'Space Grotesk, Segoe UI, sans-serif' },
+        xaxis: {
+          title: 't [years]',
+          gridcolor: 'rgba(149, 172, 219, 0.16)',
+          zerolinecolor: 'rgba(149, 172, 219, 0.2)'
+        },
+        yaxis: {
+          title: 'L(t)',
+          range: [0, yMaxLeak],
+          zeroline: true,
+          zerolinewidth: 1,
+          gridcolor: 'rgba(149, 172, 219, 0.16)',
+          zerolinecolor: 'rgba(149, 172, 219, 0.2)'
+        },
+        yaxis2: {
+          title: 'N(t)',
+          overlaying: 'y',
+          side: 'right',
+          rangemode: 'tozero',
+          zeroline: true,
+          zerolinewidth: 1,
+          gridcolor: 'rgba(149, 172, 219, 0.12)',
+          zerolinecolor: 'rgba(149, 172, 219, 0.18)'
+        },
         legend: { orientation: 'h' },
-        margin: { t: 10 }
+        margin: { t: 16, r: 46, b: 44, l: 52 }
       }, { responsive: true });
     }
 
     function toggleGompertz() {
       const isG = modeEl.value === 'gompertz';
-      gompertzFields.style.display = isG ? 'grid' : 'none';
+      gompertzFields.classList.toggle('is-hidden', !isG);
       calculate();
     }
 
-    document.getElementById('calcBtn').addEventListener('click', calculate);
-    [modeEl, pEl, nEl, tEl, alphaEl, betaEl, targetLEl, reverseTypeEl].forEach((el) => {
+    [pEl, nEl, tEl, alphaEl, betaEl, avgAgeEl, targetLEl].forEach((el) => {
+      el.addEventListener('input', calculate);
+      el.addEventListener('change', calculate);
+    });
+
+    [modeEl, reverseTypeEl].forEach((el) => {
       el.addEventListener('change', calculate);
     });
 
