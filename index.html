@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Grimes Conspiracy Calculator</title>
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background: #fafafa; color: #111; }
+    main { max-width: 1000px; margin: 0 auto; padding: 1.25rem; }
+    h1 { margin-top: 0; }
+    .card { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; }
+    label { display: block; font-size: 0.92rem; margin-bottom: 0.25rem; }
+    input, select, button { width: 100%; box-sizing: border-box; padding: 0.55rem; font-size: 0.95rem; }
+    button { cursor: pointer; }
+    .results { margin-top: 0.75rem; font-weight: 600; }
+    #plot { height: 450px; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Grimes Conspiracy Calculator</h1>
+    <p>Leak probability model from <em>On the Viability of Conspiratorial Beliefs</em> (David Robert Grimes).</p>
+
+    <section class="card">
+      <div class="grid">
+        <div>
+          <label for="mode">Model</label>
+          <select id="mode">
+            <option value="stable">Stable N</option>
+            <option value="gompertz">Changing N (Gompertz)</option>
+          </select>
+        </div>
+        <div>
+          <label for="p">Per-person leak rate p (per year)</label>
+          <input id="p" type="number" step="any" value="0.000004" />
+        </div>
+        <div>
+          <label for="n">Initial people N₀</label>
+          <input id="n" type="number" step="1" value="1000" />
+        </div>
+        <div>
+          <label for="t">Time t (years)</label>
+          <input id="t" type="number" step="0.1" value="5" />
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:0.75rem" id="gompertzFields">
+        <div>
+          <label for="alpha">Gompertz α</label>
+          <input id="alpha" type="number" step="any" value="0.0005" />
+        </div>
+        <div>
+          <label for="beta">Gompertz β</label>
+          <input id="beta" type="number" step="any" value="0.08" />
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:0.75rem">
+        <div>
+          <label for="targetL">Target leak probability L(t) (for reverse)</label>
+          <input id="targetL" type="number" min="0" max="0.999999999" step="0.0001" value="0.5" />
+        </div>
+        <div>
+          <label for="reverseType">Reverse solve</label>
+          <select id="reverseType">
+            <option value="n">max N from L(t), p, t</option>
+            <option value="t">max t from L(t), p, N</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:0.75rem">
+        <button id="calcBtn">Calculate</button>
+      </div>
+
+      <div class="results" id="forwardResult"></div>
+      <div class="results" id="reverseResult"></div>
+      <div id="error" style="margin-top:0.5rem;color:#b00020"></div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Leak probability over time</h2>
+      <div id="plot"></div>
+    </section>
+  </main>
+
+  <script>
+    const modeEl = document.getElementById('mode');
+    const pEl = document.getElementById('p');
+    const nEl = document.getElementById('n');
+    const tEl = document.getElementById('t');
+    const alphaEl = document.getElementById('alpha');
+    const betaEl = document.getElementById('beta');
+    const targetLEl = document.getElementById('targetL');
+    const reverseTypeEl = document.getElementById('reverseType');
+    const gompertzFields = document.getElementById('gompertzFields');
+    const forwardResult = document.getElementById('forwardResult');
+    const reverseResult = document.getElementById('reverseResult');
+    const errorEl = document.getElementById('error');
+
+    function parsePositive(value, name, allowZero = false) {
+      const n = Number(value);
+      if (!Number.isFinite(n) || (allowZero ? n < 0 : n <= 0)) {
+        throw new Error(`${name} must be ${allowZero ? 'non-negative' : 'positive'}.`);
+      }
+      return n;
+    }
+
+    function gompertzPopulationFactor(t, alpha, beta) {
+      return Math.exp(-(alpha / beta) * (Math.exp(beta * t) - 1));
+    }
+
+    function integrateGompertzUnit(t, alpha, beta, steps = 2000) {
+      if (t === 0) return 0;
+      const h = t / steps;
+      let total = 0;
+      for (let i = 0; i <= steps; i++) {
+        const x = i * h;
+        const fx = gompertzPopulationFactor(x, alpha, beta);
+        if (i === 0 || i === steps) total += fx;
+        else if (i % 2 === 0) total += 2 * fx;
+        else total += 4 * fx;
+      }
+      return total * h / 3;
+    }
+
+    function leakStable(p, n, t) {
+      return 1 - Math.exp(-p * n * t);
+    }
+
+    function leakGompertz(p, n0, t, alpha, beta) {
+      const integral = integrateGompertzUnit(t, alpha, beta);
+      return 1 - Math.exp(-p * n0 * integral);
+    }
+
+    function maxNStable(targetL, p, t) {
+      if (targetL === 0) return 0;
+      if (t <= 0) throw new Error('t must be positive to solve max N when target L(t) > 0.');
+      return -Math.log(1 - targetL) / (p * t);
+    }
+
+    function maxTStable(targetL, p, n) {
+      return -Math.log(1 - targetL) / (p * n);
+    }
+
+    function maxNGompertz(targetL, p, t, alpha, beta) {
+      if (targetL === 0) return 0;
+      const unitIntegral = integrateGompertzUnit(t, alpha, beta);
+      if (unitIntegral <= 0) throw new Error('t must be positive to solve max N when target L(t) > 0.');
+      return -Math.log(1 - targetL) / (p * unitIntegral);
+    }
+
+    function maxTGompertz(targetL, p, n0, alpha, beta) {
+      const target = -Math.log(1 - targetL);
+      let lo = 0;
+      let hi = 1;
+      while (p * n0 * integrateGompertzUnit(hi, alpha, beta) < target && hi < 1e6) {
+        hi *= 2;
+      }
+      for (let i = 0; i < 80; i++) {
+        const mid = (lo + hi) / 2;
+        const v = p * n0 * integrateGompertzUnit(mid, alpha, beta);
+        if (v >= target) hi = mid;
+        else lo = mid;
+      }
+      return hi;
+    }
+
+    function formatPercent(x) {
+      return `${(x * 100).toFixed(6)}%`;
+    }
+
+    function calculate() {
+      try {
+        errorEl.textContent = '';
+        const mode = modeEl.value;
+        const p = parsePositive(pEl.value, 'p');
+        const n = parsePositive(nEl.value, 'N₀');
+        const t = parsePositive(tEl.value, 't', true);
+        const targetL = Number(targetLEl.value);
+
+        if (!Number.isFinite(targetL) || targetL < 0 || targetL >= 1) {
+          throw new Error('Target L(t) must be in [0, 1).');
+        }
+
+        let forward;
+        let reverse;
+
+        if (mode === 'stable') {
+          forward = leakStable(p, n, t);
+          reverse = reverseTypeEl.value === 'n'
+            ? maxNStable(targetL, p, t)
+            : maxTStable(targetL, p, n);
+        } else {
+          const alpha = parsePositive(alphaEl.value, 'alpha', true);
+          const beta = parsePositive(betaEl.value, 'beta');
+          forward = leakGompertz(p, n, t, alpha, beta);
+          reverse = reverseTypeEl.value === 'n'
+            ? maxNGompertz(targetL, p, t, alpha, beta)
+            : maxTGompertz(targetL, p, n, alpha, beta);
+        }
+
+        forwardResult.textContent = `Forward: L(${t.toFixed(4)}) = ${formatPercent(forward)} (${forward.toPrecision(8)})`;
+        reverseResult.textContent = reverseTypeEl.value === 'n'
+          ? `Reverse: max N ≈ ${reverse.toLocaleString(undefined, { maximumFractionDigits: 3 })}`
+          : `Reverse: max t ≈ ${reverse.toLocaleString(undefined, { maximumFractionDigits: 6 })} years`;
+
+        renderPlot();
+      } catch (err) {
+        forwardResult.textContent = '';
+        reverseResult.textContent = '';
+        errorEl.textContent = err.message;
+      }
+    }
+
+    function renderPlot() {
+      const mode = modeEl.value;
+      const p = Number(pEl.value);
+      const n = Number(nEl.value);
+      const maxT = Math.max(0.1, Number(tEl.value));
+      const alpha = Number(alphaEl.value);
+      const beta = Number(betaEl.value);
+
+      const steps = 200;
+      const xs = [];
+      const ys = [];
+      const ns = [];
+
+      for (let i = 0; i <= steps; i++) {
+        const x = (maxT * i) / steps;
+        xs.push(x);
+        if (mode === 'stable') {
+          ys.push(leakStable(p, n, x));
+          ns.push(n);
+        } else {
+          ys.push(leakGompertz(p, n, x, alpha, beta));
+          ns.push(n * gompertzPopulationFactor(x, alpha, beta));
+        }
+      }
+
+      Plotly.newPlot('plot', [
+        { x: xs, y: ys, mode: 'lines', name: 'L(t)', line: { width: 3 } },
+        { x: xs, y: ns, mode: 'lines', name: 'N(t)', yaxis: 'y2', line: { dash: 'dot' } }
+      ], {
+        xaxis: { title: 't (years)' },
+        yaxis: { title: 'L(t)', range: [0, 1] },
+        yaxis2: { title: 'N(t)', overlaying: 'y', side: 'right' },
+        legend: { orientation: 'h' },
+        margin: { t: 10 }
+      }, { responsive: true });
+    }
+
+    function toggleGompertz() {
+      const isG = modeEl.value === 'gompertz';
+      gompertzFields.style.display = isG ? 'grid' : 'none';
+      calculate();
+    }
+
+    document.getElementById('calcBtn').addEventListener('click', calculate);
+    [modeEl, pEl, nEl, tEl, alphaEl, betaEl, targetLEl, reverseTypeEl].forEach((el) => {
+      el.addEventListener('change', calculate);
+    });
+
+    modeEl.addEventListener('change', toggleGompertz);
+    toggleGompertz();
+  </script>
+</body>
+</html>
